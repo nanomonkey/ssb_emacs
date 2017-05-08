@@ -1,16 +1,18 @@
 # ssb_emacs
 Secure Scuttlebutt for Emacs
+****
 
-** What is scuttlebutt?! **
-[scuttlebutt](https://www.scuttlebutt.nz/)
+**What is scuttlebutt?!**
 
-** Install **
+Learn more at [scuttlebutt](https://www.scuttlebutt.nz/)
+
+**Install**
 - Put the ssb_emacs.el file where the sun don't shine.
 
-** Usage and Commands **
+**Usage and Commands**
 
 |Hotkeys | Command | Description |
----------------------------------
+|--------|---------|-------------|
 | "C-s s"| ssb-start | start scuttlebot server |
 |"C-s p" | ssb-publish | publish a message |
 
