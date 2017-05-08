@@ -24,8 +24,8 @@
   ; returns previous message id given a message id
   (json-read-from-string (ssb-get (cdr (assoc 'previous message_id)))))
 
-(defun ssb-message-type (message_id) 
-  (cdr (assoc 'type (cdr (assoc 'content message_id)))))
+(defun ssb-message-type (message_data) 
+  (cdr (assoc 'type (cdr (assoc 'content message_data)))))
 
 
 (defun ssb-decode (message_id) 
@@ -37,14 +37,21 @@
   (shell-command-to-string 
    (concat "sbot publish --type post --text \"" text "\"")))
 
+(defun ssb-display (message_data)
+  (with-output-to-temp-buffer "Message"
+    (print (concat "Type: " (ssb-message-type message_data)))
+    (print message_data)))
 
-(defun ssb-message (message)
+(ssb-display (ssb-read-last id))
+
+(defun ssb-quick-message (message)
+  ; Create a quick message from the minibuffer.  No use of RET, /n only.
   (interactive "sMessage: " )
-  (print message))
+  (ssb-publish message))
 
 
 ;set keymaps
 (global-set-key "\C-s s" 'ssb-start-server)
 (global-set-key "\C-s p" 'ssb-publish)
-(global-set-key "\C-s c" 'ssb-message)
+(global-set-key "\C-s c" 'ssb-quick-message)
 
