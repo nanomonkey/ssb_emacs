@@ -1,11 +1,16 @@
 (require 'json)
 
 (defun ssb-start-server () (async-shell-command "sbot server"))
-(ssb-start-server)
+
 (defun ssb-whoami ()
   (cdr (assoc 'id (json-read-from-string (shell-command-to-string "sbot whoami")))))
 
-(setq id (ssb-whoami))
+(defun ssb-id ()
+  (if (ssb-whoami)
+      (setq id (ssb-whoami))
+    (progn (ssb-start-server) (ssb-id))))
+
+(ssb-id)
 
 (defun ssb-read-log (user_id)
   (shell-command-to-string 
@@ -18,12 +23,14 @@
    (concat "sbot createUserStream --id " id " --limit 1 --reverse")))
 
 (defun ssb-get (message_id) 
-  (shell-command-to-string (concat "sbot get " message_id)))
+  (shell-command-to-string (concat "sbot get  " message_id)))
+
+(defun ssb-log-type (type &optional args)
+  (shell-command-to-string (concat "sbot logt --type \"" type "\"" args)))
 
 (defun ssb-get-previous (message_id)
   ; returns previous message id given a message id
   (json-read-from-string (ssb-get (cdr (assoc 'previous message_id)))))
-
 
 (defun ssb-value (message_data)
   (cdr (assoc 'value (json-read-from-string message_data))))
@@ -48,6 +55,19 @@
 (defun ssb-channel (message_data) 
   (cdr (assoc 'channel (ssb-content message_data))))
 
+(defun ssb-name (message_data)
+  (cdr (assoc 'name (ssb-content message_data))))
+
+(setq names (make-hash-table))
+
+(defun ssb-names ()
+  (dolist (elt 
+           (json-read-from-string (shell-command-to-string 
+                                   "sbot logt --type \"about\" --reverse")))(puthash (ssb-name elt) (ssb-author elt) names)))
+
+(ssb-names)
+(maphash 'print names)
+
 (defun ssb-decode (message_id) 
   (shell-command-to-string (concat "sbot private.unbox " message_id)))
 
@@ -64,7 +84,7 @@
 (defun ssb-display-buffer (message_data)
   (get-buffer-create "SSB-Message")
   (set-buffer "SSB-Message")
-  (princ (ssb-author message_data)) 
+  (princ (gethash (ssb-author message_data) names)) 
   (princ (ssb-timestamp message_data))
   (let (type)
     (setq type (ssb-type message_data))
@@ -74,7 +94,7 @@
            (princ (concat "subscribed to" (ssb-channel message_data)))
            (t (print type))))))
 
-(ssb-display (ssb-read-last id))
+;(ssb-display (ssb-read-last id))
 (ssb-display-buffer (ssb-read-last id))
 
 (ssb-read-last id)
@@ -88,22 +108,9 @@
   (interactive "sMessage: " )
   (ssb-publish message))
 
-
+(gethash "@+D0ku/LReK6kqd3PSrcVCfbLYbDtTmS4Bd21rqhpYNA=.ed25519" names)
 (defun ssb-live-feed (id)
-  "feed
-  [--live]
-  [--gt index]
-  [--gte index]
-  [--lt index]
-  [--lte index]
-  [--reverse] 
-  [--keys]
-  [--values]
-  [--limit n]"
   (async-shell-command "sbot feed --live --reverse --limit 5"))
-
-
-(ssb-live-feed id)
 
 
 ;set keymaps
@@ -111,3 +118,5 @@
 (global-set-key "\C-s p" 'ssb-publish)
 (global-set-key "\C-s c" 'ssb-quick-message)
 (global-set-key "\C-s w" 'ssb-whoami)
+
+ 
