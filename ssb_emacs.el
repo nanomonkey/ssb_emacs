@@ -1,5 +1,9 @@
 (require 'json)
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;  Start ssb server and set your id ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
 (defun ssb-start-server () (async-shell-command "sbot server"))
 
 (defun ssb-whoami ()
@@ -13,9 +17,32 @@
 
 (ssb-id)
 
-(defun ssb-read-log (user_id)
+;;;;;;;;;;;;;;;;;;;;;;
+;; Publish messages ;;
+;;;;;;;;;;;;;;;;;;;;;;
+
+(defun ssb-publish (text) 
+  ; publish a message
   (shell-command-to-string 
-      (concat "sbot createUserStream --id " id)))
+   (concat "sbot publish --type post --text \"" text "\"")))
+
+(defun ssb-quick-message (message)
+  ; Create a quick message from the minibuffer.  No use of RET, /n only.
+  (interactive "sMessage: " )
+  (ssb-publish message))
+
+;;;;;;;;;;;;;;;;;;;
+;; Read Messages ;;
+;;;;;;;;;;;;;;;;;;;
+
+(defun ssb-live-feed (id)
+  ; read raw live feed
+  (async-shell-command "sbot feed --live --reverse --limit 5"))
+
+(defun ssb-read-log (user_id)
+  ;; read a specific user feed
+  (shell-command-to-string 
+      (concat "sbot createUserStream --id " user_id)))
 
 (defun ssb-read-last (id) 
   (shell-command-to-string 
@@ -56,6 +83,8 @@
 (defun ssb-name (message_data)
   (alist-get 'name (ssb-content message_data)))
 
+
+;; Create local name hashtable and populate it from about stream
 (setq names (make-hash-table))
 
 (defun ssb-name ()
@@ -86,9 +115,12 @@
 
 ;(ssb-start-server)
 ;(ssb-names)
+;(gethash id names)
 ;(maphash 'print names)
 
-(defun ssb-decode (message_id) 
+
+(defun ssb-decode (message_id)
+  ; untested decode message
   (shell-command-to-string (concat "sbot private.unbox " message_id)))
 
 
@@ -106,28 +138,14 @@
            (insert (concat "subscribed to" (ssb-channel message_data)))
            (t (insert type))))))
 
-;(ssb-display (ssb-read-last id))
-(ssb-display-buffer (ssb-read-last id))
+(defun ssb-display-last ()
+  (ssb-display-buffer (ssb-read-last id)))
 
-(defun ssb-publish (text) 
-  ; publish a message
-  (shell-command-to-string 
-   (concat "sbot publish --type post --text \"" text "\"")))
-
-(defun ssb-quick-message (message)
-  ; Create a quick message from the minibuffer.  No use of RET, /n only.
-  (interactive "sMessage: " )
-  (ssb-publish message))
-
-(gethash "@+D0ku/LReK6kqd3PSrcVCfbLYbDtTmS4Bd21rqhpYNA=.ed25519" names)
-(defun ssb-live-feed (id)
-  (async-shell-command "sbot feed --live --reverse --limit 5"))
-
-
-;set keymaps
-(global-set-key "\C-s s" 'ssb-start-server)
-(global-set-key "\C-s p" 'ssb-publish)
-(global-set-key "\C-s c" 'ssb-quick-message)
-(global-set-key "\C-s w" 'ssb-whoami)
+;; set keymaps
+;(global-set-key (kbd "C-r s") 'ssb-start-server)
+;(global-set-key (kbd "C-r p") 'ssb-publish)
+;(global-set-key (kbd "C-r c") 'ssb-quick-message)
+;(global-set-key (kbd "C-r w") 'ssb-whoami)
+;(global-set-key (kbd "C-s C-l") 'ssb-display-last)
 
  
