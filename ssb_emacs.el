@@ -3,7 +3,8 @@
 (defun ssb-start-server () (async-shell-command "sbot server"))
 
 (defun ssb-whoami ()
-  (cdr (assoc 'id (json-read-from-string (shell-command-to-string "sbot whoami")))))
+  (alist-get 'id (json-read-from-string 
+                  (shell-command-to-string "sbot whoami"))))
 
 (defun ssb-id ()
   (if (ssb-whoami)
@@ -15,8 +16,6 @@
 (defun ssb-read-log (user_id)
   (shell-command-to-string 
       (concat "sbot createUserStream --id " id)))
-  
-(setq logs (ssb-read-log id))
 
 (defun ssb-read-last (id) 
   (shell-command-to-string 
@@ -30,74 +29,86 @@
 
 (defun ssb-get-previous (message_id)
   ; returns previous message id given a message id
-  (json-read-from-string (ssb-get (cdr (assoc 'previous message_id)))))
+  (json-read-from-string (ssb-get (alist-get 'previous message_id))))
 
 (defun ssb-value (message_data)
-  (cdr (assoc 'value (json-read-from-string message_data))))
+  (alist-get 'value (json-read-from-string message_data)))
 
 (defun ssb-author (message_data) 
-  (cdr (assoc 'author (ssb-value message_data))))
+  (alist-get 'author (ssb-value message_data)))
 
 (defun ssb-timestamp (message_data)
   (format-time-string "%D %H:%M"
-                      (cdr (assoc 'timestamp 
-                                  (ssb-value message_data)))))
+                      (alist-get 'timestamp (ssb-value message_data))))
 
 (defun ssb-content (message_data) 
-  (cdr (assoc 'content (ssb-value message_data))))
+  (alist-get 'content (ssb-value message_data)))
 
 (defun ssb-text (message_data)
-  (cdr (assoc 'text (ssb-content message_data))))
+  (alist-get 'text (ssb-content message_data)))
 
 (defun ssb-type (message_data) 
-  (cdr (assoc 'type (ssb-content message_data))))
+  (alist-get 'type (ssb-content message_data)))
 
 (defun ssb-channel (message_data) 
-  (cdr (assoc 'channel (ssb-content message_data))))
+  (alist-get 'channel (ssb-content message_data)))
 
 (defun ssb-name (message_data)
-  (cdr (assoc 'name (ssb-content message_data))))
+  (alist-get 'name (ssb-content message_data)))
 
 (setq names (make-hash-table))
 
-(defun ssb-names ()
-  (dolist (elt 
-           (json-read-from-string (shell-command-to-string 
-                                   "sbot logt --type \"about\" --reverse")))(puthash (ssb-name elt) (ssb-author elt) names)))
+(defun ssb-name ()
+  (let (command timestamp json) 
+    (setq timestamp (gethash "name-ts" names))
+    (setq command "sbot logt --type \"about\" --keys --limit 1")
+    (if timestamp (concat command " --gt " timestamp))
+    (print command)
+    (setq json (json-read-from-string (shell-command-to-string command)))
+    (print json)
+    (puthash "name_ts" (alist-get 'ts json) names)
+    (print (alist-get 'ts json))
+    (if (string= (alist-get 'author (alist-get 'value json)) 
+                 (alist-get 'about (alist-get 'value json))) 
+        (puthash (alist-get 'about (alist-get 'value json))
+                 (alist-get 'name (alist-get 'value json))))))
 
-(ssb-names)
-(maphash 'print names)
+; (gethash "name_ts" names)
+; (ssb-name)
+
+(defun ssb-names ()
+  (pop-to-buffer (get-buffer-create "SSB-Names"))
+  (insert (shell-command-to-string "sbot logt --type \"about\" "))
+  (goto-char (point-min))
+  (goto-char (search-forward "author\": "))
+  (setq author ()))
+    
+
+;(ssb-start-server)
+;(ssb-names)
+;(maphash 'print names)
 
 (defun ssb-decode (message_id) 
   (shell-command-to-string (concat "sbot private.unbox " message_id)))
 
-(defun ssb-display (message_data)
-  (with-output-to-temp-buffer "Message"
-    (let (type)
-      (setq type (ssb-type message_data)))
-    (print (concat "Type: " type))
-    (print (concat "Time: " (ssb-timestamp message_data)))
-    (print (concat "Channel: " (ssb-channel message_data)))
-    (print (ssb-text message_data))
-    (print message_data)))
 
 (defun ssb-display-buffer (message_data)
-  (get-buffer-create "SSB-Message")
-  (set-buffer "SSB-Message")
-  (princ (gethash (ssb-author message_data) names)) 
-  (princ (ssb-timestamp message_data))
+  (pop-to-buffer (get-buffer-create "SSB-Message"))
+  (erase-buffer)
+  (insert (concat "Author: " (gethash (ssb-author message_data) names))) 
+  (insert (concat " Time: " (ssb-timestamp message_data)))
+  (newline)
   (let (type)
     (setq type (ssb-type message_data))
-    (cond ((eq type "post")
-           (print (ssb-text message_data)))
-          ((eq type "channel")
-           (princ (concat "subscribed to" (ssb-channel message_data)))
-           (t (print type))))))
+    (cond ((string= type "post")
+           (insert (ssb-text message_data)))
+          ((string= type "channel")
+           (insert (concat "subscribed to" (ssb-channel message_data)))
+           (t (insert type))))))
 
 ;(ssb-display (ssb-read-last id))
 (ssb-display-buffer (ssb-read-last id))
 
-(ssb-read-last id)
 (defun ssb-publish (text) 
   ; publish a message
   (shell-command-to-string 
