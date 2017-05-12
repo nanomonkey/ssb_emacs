@@ -1,4 +1,5 @@
 (require 'json)
+(setq json-object-type 'plist)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  Start ssb server and set your id ;;
@@ -7,15 +8,11 @@
 (defun ssb-start-server () (async-shell-command "sbot server"))
 
 (defun ssb-whoami ()
-  (alist-get 'id (json-read-from-string 
-                  (shell-command-to-string "sbot whoami"))))
+  (plist-get (json-read-from-string 
+              (shell-command-to-string "sbot whoami")) :id))
 
 (defun ssb-id ()
-  (if (ssb-whoami)
-      (setq id (ssb-whoami))
-    (progn (ssb-start-server) (ssb-id))))
-
-(ssb-id)
+  (setq id (ssb-whoami)))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Publish messages ;;
@@ -31,13 +28,27 @@
   (interactive "sMessage: " )
   (ssb-publish message))
 
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Follow and Unfollow  ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun ssb-follow (feed_id)
+  (shell-command-to-string 
+   (format "sbot publish --type contact --contact %s --following" 
+           feed_id)))
+
+(defun ssb-unfollow (feed_id)
+  (shell-command-to-string 
+   (format "sbot publish --type contact --contact %s --no-following" 
+           feed_id)))
+
 ;;;;;;;;;;;;;;;;;;;
 ;; Read Messages ;;
 ;;;;;;;;;;;;;;;;;;;
 
 (defun ssb-live-feed (id)
   ; read raw live feed
-  (async-shell-command "sbot feed --live --reverse --limit 5"))
+  (async-shell-command "sbot feed --live"))
 
 (defun ssb-read-log (user_id)
   ;; read a specific user feed
@@ -58,66 +69,92 @@
   ; returns previous message id given a message id
   (json-read-from-string (ssb-get (alist-get 'previous message_id))))
 
-(defun ssb-value (message_data)
+;;;;;;;;;;;;;;;;;;;;;
+;; Message Parsing ;;
+;;;;;;;;;;;;;;;;;;;;;
+
+(defun ssb-message-value (message_data)
   (alist-get 'value (json-read-from-string message_data)))
 
-(defun ssb-author (message_data) 
-  (alist-get 'author (ssb-value message_data)))
+(defun ssb-message-author (message_data) 
+  (alist-get 'author (ssb-message-value message_data)))
 
-(defun ssb-timestamp (message_data)
+(defun ssb-message-timestamp (message_data)
   (format-time-string "%D %H:%M"
-                      (alist-get 'timestamp (ssb-value message_data))))
+                      (alist-get 'timestamp 
+                                 (ssb-message-value message_data))))
 
-(defun ssb-content (message_data) 
-  (alist-get 'content (ssb-value message_data)))
+(defun ssb-message-content (message_data) 
+  (alist-get 'content (ssb-message-value message_data)))
 
-(defun ssb-text (message_data)
-  (alist-get 'text (ssb-content message_data)))
+(defun ssb-message-text (message_data)
+  (alist-get 'text (ssb-message-content message_data)))
 
-(defun ssb-type (message_data) 
-  (alist-get 'type (ssb-content message_data)))
+(defun ssb-message-type (message_data) 
+  (alist-get 'type (ssb-message-content message_data)))
 
-(defun ssb-channel (message_data) 
-  (alist-get 'channel (ssb-content message_data)))
+(defun ssb-message-channel (message_data) 
+  (alist-get 'channel (ssb-message-content message_data)))
 
-(defun ssb-name (message_data)
-  (alist-get 'name (ssb-content message_data)))
+(defun ssb-message-name (message_data)
+  (alist-get 'name (ssb-message-content message_data)))
 
 
 ;; Create local name hashtable and populate it from about stream
-(setq names (make-hash-table))
+(setq names (make-hash-table :test 'equal))
 
 (defun ssb-name ()
   (let (command timestamp json) 
-    (setq timestamp (gethash "name-ts" names))
-    (setq command "sbot logt --type \"about\" --keys --limit 1")
-    (if timestamp (concat command " --gt " timestamp))
-    (print command)
+    (setq timestamp (gethash "last_ts" names))
+    (setq command "sbot logt --type \"about\" --limit 1")
+    (if timestamp (setq command 
+                        (concat command " --gt \"" timestamp "\"")))
     (setq json (json-read-from-string (shell-command-to-string command)))
-    (print json)
-    (puthash "name_ts" (alist-get 'ts json) names)
-    (print (alist-get 'ts json))
-    (if (string= (alist-get 'author (alist-get 'value json)) 
-                 (alist-get 'about (alist-get 'value json))) 
-        (puthash (alist-get 'about (alist-get 'value json))
-                 (alist-get 'name (alist-get 'value json))))))
+    (if (not (equal json "End of file while parsing JSON"))
+        (progn  (let* ((msg-value (plist-get json :value))
+                       (msg-content (plist-get msg-value :content)))
+                  (puthash "last_ts" 
+                           (number-to-string (plist-get json :ts)) names)
+                  (if (string= (plist-get msg-value :author) 
+                               (plist-get msg-content :about)) 
+                      (puthash (plist-get msg-content :about)
+                               (plist-get msg-content :name) names)))
+                (ssb-name)))))
 
-; (gethash "name_ts" names)
+(defun ssb-get-names ()
+  ; attempt do get names with one call...
+  (dolist (json
+           (json-read-from-string 
+            (shell-command-to-string "sbot logt --type \"about\"")))
+    (let ((msg-value (plist-get json :value))
+          (msg-content (plist-get (plist-get json :value) :content)))
+      (if (string= (plist-get msg-value :author)
+                   (plist-get msg-content :about))
+          (puthash
+           (plist-get msg-content :about)
+           (plist-get msg-content :name)
+           names)))))
+
+(defun ssb-save-names ()
+  (with-temp-buffer 
+    (prin1 names)
+    (save-buffer "ssb_names.el")))
+
+; (ssb-save-names)
+; (ssb-get-names)
+; (ssb-start-server)
+; (ssb-id)
 ; (ssb-name)
-
-(defun ssb-names ()
-  (pop-to-buffer (get-buffer-create "SSB-Names"))
-  (insert (shell-command-to-string "sbot logt --type \"about\" "))
-  (goto-char (point-min))
-  (goto-char (search-forward "author\": "))
-  (setq author ()))
-    
-
-;(ssb-start-server)
-;(ssb-names)
-;(gethash id names)
-;(maphash 'print names)
-
+; (hash-table-count names)
+; (gethash "last_ts" names)
+; (gethash id names)
+; (require 'subr-x)
+; (hash-table-values names) 
+; (clrhash names)
+; (gethash id names)
+; (maphash (lambda (k v) (print (concat k ":" v))) names)
+; (puthash "last_ts" "1491593797498" names)
+; (puthash "last_ts" "2491593797498" names)
 
 (defun ssb-decode (message_id)
   ; untested decode message
