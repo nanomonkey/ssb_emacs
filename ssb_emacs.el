@@ -76,30 +76,30 @@
 ;;;;;;;;;;;;;;;;;;;;;
 
 (defun ssb-message-value (message_data)
-  (alist-get 'value (json-read-from-string message_data)))
+  (plist-get (json-read-from-string message_data) :value))
 
 (defun ssb-message-author (message_data) 
-  (alist-get 'author (ssb-message-value message_data)))
+  (plist-get (ssb-message-value message_data) :author))
 
 (defun ssb-message-timestamp (message_data)
   (format-time-string "%D %H:%M"
-                      (alist-get 'timestamp 
-                                 (ssb-message-value message_data))))
+                      (plist-get (ssb-message-value message_data) 
+                                 :timestamp)))
 
 (defun ssb-message-content (message_data) 
-  (alist-get 'content (ssb-message-value message_data)))
+  (plist-get (ssb-message-value message_data) :content))
 
 (defun ssb-message-text (message_data)
-  (alist-get 'text (ssb-message-content message_data)))
+  (plist-get (ssb-message-content message_data) :text))
 
 (defun ssb-message-type (message_data) 
-  (alist-get 'type (ssb-message-content message_data)))
+  (plist-get (ssb-message-content message_data) :type))
 
 (defun ssb-message-channel (message_data) 
-  (alist-get 'channel (ssb-message-content message_data)))
+  (plist-get (ssb-message-content message_data) :channel))
 
 (defun ssb-message-name (message_data)
-  (alist-get 'name (ssb-message-content message_data)))
+  (plist-get (ssb-message-content message_data) :name))
 
 
 ;; Create local name hashtable and populate it from about stream
@@ -210,7 +210,8 @@
            (insert (ssb-text message_data)))
           ((string= type "channel")
            (insert (concat "subscribed to" (ssb-channel message_data)))
-           (t (insert type))))))
+           (t (insert type)))))
+  (insert-button "Previous" ))
 
 (defun ssb-display-last ()
   (ssb-display-buffer (ssb-read-last id)))
