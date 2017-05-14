@@ -1,6 +1,6 @@
 (require 'json)
 (setq json-object-type 'plist)
-
+(setq name_file "~/.ssb/ssb_names.el")
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  Start ssb server and set your id ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -69,6 +69,8 @@
   ; returns previous message id given a message id
   (json-read-from-string (ssb-get (alist-get 'previous message_id))))
 
+;(ssb-read-last id)
+
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Message Parsing ;;
 ;;;;;;;;;;;;;;;;;;;;;
@@ -101,7 +103,13 @@
 
 
 ;; Create local name hashtable and populate it from about stream
-(setq names (make-hash-table :test 'equal))
+(defun ssb-create-name-hash ()
+  (setq names (make-hash-table :test 'equal))
+  (with-temp-buffer
+    (insert-file-contents ssb_name_file)
+    (while (not (eobp))
+      )))
+
 
 (defun ssb-name ()
   (let (command timestamp json) 
@@ -121,6 +129,33 @@
                                (plist-get msg-content :name) names)))
                 (ssb-name)))))
 
+(defun ssb-one-about-message ()
+  ;; procedural method of grabbing an about message from a buffer
+  (search-forward "{")
+  (setq startPos (1- (point)))
+  (search-forward "}")
+  (search-forward "}")
+  (search-forward "}")
+  (setq endPos (point))
+  (json-read-from-string (buffer-substring-no-properties startPos endPos)))
+
+(defun ssb-process-about (json)
+      (let ((msg-value (plist-get json :value))
+          (msg-content (plist-get (plist-get json :value) :content)))
+      (if (string= (plist-get msg-value :author)
+                   (plist-get msg-content :about))
+          (puthash
+           (plist-get msg-content :about)
+           (plist-get msg-content :name)
+           names))))
+
+(defun ssb-get-names2 ()
+  (with-temp-buffer
+    (insert (shell-command-to-string "sbot logt --type \"about\""))
+    (goto-char 1)
+    (while (not (eobp))
+      (ssb-process-about (ssb-one-about-message)))))
+
 (defun ssb-get-names ()
   ; attempt do get names with one call...
   (dolist (json
@@ -136,9 +171,11 @@
            names)))))
 
 (defun ssb-save-names ()
-  (with-temp-buffer 
-    (prin1 names)
-    (save-buffer "ssb_names.el")))
+  (find-file name_file)
+  (goto-char 1)
+  (prin1 names)
+  (save-buffer)
+  (kill-buffer (current-buffer)))
 
 ; (ssb-save-names)
 ; (ssb-get-names)
@@ -177,12 +214,5 @@
 
 (defun ssb-display-last ()
   (ssb-display-buffer (ssb-read-last id)))
-
-;; set keymaps
-;(global-set-key (kbd "C-r s") 'ssb-start-server)
-;(global-set-key (kbd "C-r p") 'ssb-publish)
-;(global-set-key (kbd "C-r c") 'ssb-quick-message)
-;(global-set-key (kbd "C-r w") 'ssb-whoami)
-;(global-set-key (kbd "C-s C-l") 'ssb-display-last)
 
  
