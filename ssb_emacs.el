@@ -1,18 +1,28 @@
+;; Secure Scuttlebutt Emacs Major Mode ;;
+
 (require 'json)
 (setq json-object-type 'plist)
-(setq name_file "~/.ssb/ssb_names.el")
+(setq ssb_name_file "~/.ssb/ssb_names.el")
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  Start ssb server and set your id ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(defun ssb-start-server () (async-shell-command "sbot server"))
+(defun ssb-start-server () 
+(interactive)
+(start-process "ssb-server"   "ssb-server-buffer" "sbot" "server"))
+
+(defun ssb-stop-server ()
+  (interactive)
+  (process-send-eof "ssb-server")
+  (kill-buffer "ssb-server-buffer"))
+
 
 (defun ssb-whoami ()
-  (plist-get (json-read-from-string 
-              (shell-command-to-string "sbot whoami")) :id))
-
-(defun ssb-id ()
-  (setq id (ssb-whoami)))
+  (interactive)
+  (setq ssb_id
+        (plist-get (json-read-from-string 
+                    (shell-command-to-string "sbot whoami")) :id)))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Publish messages ;;
@@ -24,6 +34,7 @@
    (concat "sbot publish --type post --text \"" text "\"")))
 
 (defun ssb-quick-message (message)
+  (interactive)
   ; Create a quick message from the minibuffer.  No use of RET, /n only.
   (interactive "sMessage: " )
   (ssb-publish message))
@@ -65,11 +76,8 @@
 (defun ssb-log-type (type &optional args)
   (shell-command-to-string (concat "sbot logt --type \"" type "\"" args)))
 
-(defun ssb-get-previous (message_id)
-  ; returns previous message id given a message id
-  (json-read-from-string (ssb-get (alist-get 'previous message_id))))
 
-;(ssb-read-last id)
+;(ssb-read-last ssb_id)
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Message Parsing ;;
@@ -101,15 +109,27 @@
 (defun ssb-message-name (message_data)
   (plist-get (ssb-message-content message_data) :name))
 
+(defun ssb-message-previous (message_data)
+  (plist-get message_data :previous))
 
 ;; Create local name hashtable and populate it from about stream
 (defun ssb-create-name-hash ()
   (setq names (make-hash-table :test 'equal))
   (with-temp-buffer
     (insert-file-contents ssb_name_file)
+    (goto-char 1)
     (while (not (eobp))
-      )))
+      (puthash 
+       (read 
+        (buffer-substring-no-properties 
+         (begining-of-line) (end-of-line)) )) )))
 
+(defun ssb-save-names ()
+  (find-file ssb_name_file)
+  (erase-buffer)
+  (prin1 names (current-buffer))
+  (save-buffer)
+  (kill-buffer (current-buffer)))
 
 (defun ssb-name ()
   (let (command timestamp json) 
@@ -154,7 +174,8 @@
     (insert (shell-command-to-string "sbot logt --type \"about\""))
     (goto-char 1)
     (while (not (eobp))
-      (ssb-process-about (ssb-one-about-message)))))
+      (ssb-process-about (ssb-one-about-message)))
+    (ssb-save-names)))
 
 (defun ssb-get-names ()
   ; attempt do get names with one call...
@@ -170,17 +191,10 @@
            (plist-get msg-content :name)
            names)))))
 
-(defun ssb-save-names ()
-  (find-file name_file)
-  (goto-char 1)
-  (prin1 names)
-  (save-buffer)
-  (kill-buffer (current-buffer)))
 
 ; (ssb-save-names)
 ; (ssb-get-names)
 ; (ssb-start-server)
-; (ssb-id)
 ; (ssb-name)
 ; (hash-table-count names)
 ; (gethash "last_ts" names)
@@ -211,9 +225,11 @@
           ((string= type "channel")
            (insert (concat "subscribed to" (ssb-channel message_data)))
            (t (insert type)))))
-  (insert-button "Previous" ))
+  (insert-button "Previous" 
+                 'action '(ssb-get (ssb-message-previous (message_data)))))
 
 (defun ssb-display-last ()
+  (interactive)
   (ssb-display-buffer (ssb-read-last id)))
 
  
