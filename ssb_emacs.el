@@ -4,6 +4,38 @@
 (setq json-object-type 'plist)
 (setq ssb_name_file "~/.ssb/ssb_names.el")
 
+ 
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Render via Patchfoo   ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; This is probably the easiest way to get started.
+; ssb is rendered localy via Patchfoo, then
+; viewed with eww.
+
+(defun ssb-start-patchfoo ()
+  (interactive)
+  (start-process "ssb-patchfoo"
+                 "ssb-patchfoo-buffer" 
+                 "sbot" "server" "-patchfoo.port" "8027"))
+
+(defun ssb-stop-patchfoo ()
+  (interactive)
+  (process-send-eof "ssb-patchfoo")
+  (kill-buffer "ssb-patchfoo-buffer"))
+
+(defun ssb-check-patchfoo ()
+  (if (not (process-status "ssb-patchfoo"))
+      (if (y-or-n-p "Patchfoo is not running, start?")
+          (progn 
+            (ssb-start-patchfoo)
+            (sleep-for 1)))))
+
+(defun ssb-eww-patchfoo ()
+  (interactive)
+  (ssb-check-patchfoo)
+  (eww "http://localhost:8027"))
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  Start ssb server and set your id ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -30,6 +62,14 @@
   (setq ssb_id
         (plist-get (json-read-from-string 
                     (shell-command-to-string "sbot whoami")) :id)))
+
+;;;;;;;;;;
+;; Pubs ;;
+;;;;;;;;;;
+
+(defun ssb-join-pub (code)
+  (shell-command-to-string (concat
+                            "sbot invite.accept " code)))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Publish messages ;;
@@ -83,8 +123,9 @@
 (defun ssb-log-type (type &optional args)
   (shell-command-to-string (concat "sbot logt --type \"" type "\"" args)))
 
+(defun ssb-related-messages (message_id)
+  (shell-command-to-string (concat "sbot relatedMessages --id " message_id)))
 
-;(ssb-read-last ssb_id)
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; Message Parsing ;;
@@ -248,30 +289,4 @@
 (defun ssb-display-last ()
   (interactive)
   (ssb-display-buffer (ssb-read-last ssb_id)))
-
- 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Render via Patchfoo     ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-(defun ssb-start-patchfoo ()
-  (interactive)
-  (start-process "ssb-patchfoo" "ssb-patchfoo-buffer" "sbot" "server" "-patchfoo.port" "8027"))
-
-(defun ssb-stop-patchfoo ()
-  (interactive)
-  (process-send-eof "ssb-patchfoo")
-  (kill-buffer "ssb-patchfoo-buffer"))
-
-(defun ssb-check-patchfoo ()
-  (if (not (process-status "ssb-patchfoo"))
-      (if (y-or-n-p "Patchfoo is not running, start?")
-          (progn 
-            (ssb-start-patchfoo)
-            (sleep-for 1)))))
-
-(defun ssb-eww-patchfoo ()
-  (interactive)
-  (ssb-check-patchfoo)
-  (eww "http://localhost:8027"))
 
