@@ -263,7 +263,15 @@
   (process-send-eof "ssb-patchfoo")
   (kill-buffer "ssb-patchfoo-buffer"))
 
+(defun ssb-check-patchfoo ()
+  (if (not (process-status "ssb-patchfoo"))
+      (if (y-or-n-p "Patchfoo is not running, start?")
+          (progn 
+            (ssb-start-patchfoo)
+            (sleep-for 1)))))
+
 (defun ssb-eww-patchfoo ()
   (interactive)
+  (ssb-check-patchfoo)
   (eww "http://localhost:8027"))
 
