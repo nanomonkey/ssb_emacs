@@ -17,9 +17,16 @@
   (process-send-eof "ssb-server")
   (kill-buffer "ssb-server-buffer"))
 
+(defun ssb-check-server ()
+  (if (not (process-status "ssb-server"))
+      (if (y-or-n-p "SSB server is not running, start?")
+          (progn 
+            (ssb-start-server)
+            (sleep-for 1)))))
 
 (defun ssb-whoami ()
   (interactive)
+  (ssb-check-server)
   (setq ssb_id
         (plist-get (json-read-from-string 
                     (shell-command-to-string "sbot whoami")) :id)))
@@ -211,11 +218,19 @@
   ; untested decode message
   (shell-command-to-string (concat "sbot private.unbox " message_id)))
 
+(defun ssb-name-from-id (user_id)
+  (ssb-message-name
+   (shell-command-to-string 
+    (format "sbot links --source %s --dest %s --rel about --values" 
+            user_id user_id))))
 
 (defun ssb-display-buffer (message_data)
   (pop-to-buffer (get-buffer-create "SSB-Message"))
   (erase-buffer)
-  (insert (concat "Author: " (gethash (ssb-author message_data) names))) 
+  (insert message_data)
+  (newline)
+  (insert (concat "Author: " (gethash 
+                              (ssb-message-author message_data) names))) 
   (insert (concat " Time: " (ssb-timestamp message_data)))
   (newline)
   (let (type)
@@ -226,10 +241,29 @@
            (insert (concat "subscribed to" (ssb-channel message_data)))
            (t (insert type)))))
   (insert-button "Previous" 
-                 'action '(ssb-get (ssb-message-previous (message_data)))))
+                 'action 
+                 (lambda (x) 
+                   (ssb-get (ssb-message-previous (message_data))))))
 
 (defun ssb-display-last ()
   (interactive)
-  (ssb-display-buffer (ssb-read-last id)))
+  (ssb-display-buffer (ssb-read-last ssb_id)))
 
  
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; Render via Patchfoo     ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun ssb-start-patchfoo ()
+  (interactive)
+  (start-process "ssb-patchfoo" "ssb-patchfoo-buffer" "sbot" "server" "-patchfoo.port" "8027"))
+
+(defun ssb-stop-patchfoo ()
+  (interactive)
+  (process-send-eof "ssb-patchfoo")
+  (kill-buffer "ssb-patchfoo-buffer"))
+
+(defun ssb-eww-patchfoo ()
+  (interactive)
+  (eww "http://localhost:8027"))
+
