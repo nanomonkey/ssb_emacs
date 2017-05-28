@@ -10,8 +10,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ; This is probably the easiest way to get started.
-; ssb is rendered localy via Patchfoo, then
+; ssb is rendered locally via Patchfoo, then
 ; viewed with eww.
+; Install patchfoo as a sbot plugin, then run 
+; M-x ssb-eww-patchfoo
 
 (defun ssb-start-patchfoo ()
   (interactive)
@@ -35,6 +37,11 @@
   (interactive)
   (ssb-check-patchfoo)
   (eww "http://localhost:8027"))
+
+
+
+;; The following are all elisp functions for interacting
+;; with sbot directly instead of using Patchfoo & eww.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  Start ssb server and set your id ;;
@@ -252,8 +259,7 @@
 ; (clrhash names)
 ; (gethash id names)
 ; (maphash (lambda (k v) (print (concat k ":" v))) names)
-; (puthash "last_ts" "1491593797498" names)
-; (puthash "last_ts" "2491593797498" names)
+
 
 (defun ssb-decode (message_id)
   ; untested decode message
