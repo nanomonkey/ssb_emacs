@@ -11,10 +11,27 @@ Learn more at [scuttlebutt](https://www.scuttlebutt.nz/)
 
 **Usage and Commands**
 
-|Hotkeys | Command | Description |
-|--------|---------|-------------|
-| "C-s s"| ssb-start | start scuttlebot server |
-|"C-s p" | ssb-publish | publish a message |
+Render via Patchfoo and EWW
+
+| Interactive Command | Description|
+|-------------------|------------|
+| M-x ssb-start-patchfoo | Starts Patchfoo server process |
+|M-x ssb-eww-patchfoo | Opens up localhost via eww browser|
+|M-x ssb-stop-patchfoo | Stops patchfoo process |
+
+
+Render via emacs (work in progress)
+
+| Interactive Command | Description|
+|-------------------|------------|
+|M-x ssb-start-server| Starts sbot server process|
+|M-x ssb-stop-server | Stops sbot server process |
+|M-x ssb-whoami | gets id |
+|M-x ssb-join-pub | Join a pub with code |
+|M-x ssb-quick-message | Send a one line message |
+
+There are functions for viewing and creating longer messages, but they are
+still being ironed out.  Pull requests welcome.
 
 ...more to come
 

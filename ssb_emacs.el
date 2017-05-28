@@ -1,3 +1,4 @@
+;; -*- lexical-binding: t; -*-
 ;; Secure Scuttlebutt Emacs Major Mode ;;
 
 (require 'json)
@@ -177,7 +178,7 @@
       (puthash 
        (read 
         (buffer-substring-no-properties 
-         (begining-of-line) (end-of-line)) )) )))
+         (beginning-of-line) (end-of-line)) )) )))
 
 (defun ssb-save-names ()
   (find-file ssb_name_file)
@@ -296,3 +297,71 @@
   (interactive)
   (ssb-display-buffer (ssb-read-last ssb_id)))
 
+
+
+;;;;;;;;;;;;
+;; images ;;
+;;;;;;;;;;;;
+
+
+(defun ssb-get-blob (blob_id)
+  (with-temp-buffer
+    (let ((coding-system-for-write 'binary))
+      (shell-command "sbot blobs.get \"" blob_id "\"")
+      (image-mode))))
+
+
+(defun ssb-list-blobs ()
+  (interactive)
+  (with-temp-buffer
+    (insert (shell-command-to-string "sbot blobs.ls"))
+    (goto-char 1)
+    (while (not (eobp))
+      (ssb-get-blob 
+       (buffer-substring-no-properties 
+        (beginning-of-line) 
+        (end-of-line))))))
+
+(defun ssb-write-blob (blob_id)
+  (with-temp-buffer
+    (insert (shell-command "sbot blobs.get \"" blob_id "\""))
+    (write-file "image.jpg")))
+
+(defun ssb-list-blobs ()
+  (interactive)
+  (with-temp-buffer
+    (insert (shell-command-to-string "sbot blobs.ls"))
+    (goto-char 1)
+    (while (not (eobp))
+      (ssb-get-blob 
+       (buffer-substring-no-properties 
+        (beginning-of-line) 
+        (end-of-line))))))
+
+(ssb-get-blob "&//URUOPzcwXbPGgvX0phR7AOjM+UmO2VnQXfvAluKIk=.sha256")
+
+(defun blob-preview-sentinel (blob event)
+  (if (equal event "finished\n")
+      (progn
+        (switch-to-buffer "blob-preview-buffer")
+        (when (display-images-p)
+          (image-mode)))
+    (warn "Blob Preview failed: %s" event)))
+
+(defun ssb-blob-preview (blob_id)
+  "Preview blob." 
+  (interactive)
+  (let ((b (get-buffer "blob-preview-buffer")))
+    (when b
+      (kill-buffer b)))
+  (let ((process-connection-type nil)
+        (buf (get-buffer-create "blob-preview-buffer"))
+        (coding-system-for-read 'raw-text)
+        (coding-system-for-write 'binary))
+    (let ((blob (start-process "blob" buf
+                               "sbot" "blobs.get" 
+                               (shell-quote-argument blob_id))))
+      (process-send-eof blob)
+      (set-process-sentinel blob 'blob-preview-sentinel))))
+
+(ssb-blob-preview "&//URUOPzcwXbPGgvX0phR7AOjM+UmO2VnQXfvAluKIk=.sha256")
