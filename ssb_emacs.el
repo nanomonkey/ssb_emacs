@@ -17,7 +17,7 @@
 ; M-x ssb-eww-patchfoo
 
 (defun ssb-start-patchfoo ()
-  (interactive)
+  (Interactive)
   (start-process "ssb-patchfoo"
                  "ssb-patchfoo-buffer" 
                  "sbot" "server" "-patchfoo.port" "8027"))
@@ -364,4 +364,5 @@
       (process-send-eof blob)
       (set-process-sentinel blob 'blob-preview-sentinel))))
 
-(ssb-blob-preview "&//URUOPzcwXbPGgvX0phR7AOjM+UmO2VnQXfvAluKIk=.sha256")
+;(ssb-blob-preview "&//URUOPzcwXbPGgvX0phR7AOjM+UmO2VnQXfvAluKIk=.sha256")
+
