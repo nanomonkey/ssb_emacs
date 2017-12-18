@@ -17,7 +17,7 @@
 ; M-x ssb-eww-patchfoo
 
 (defun ssb-start-patchfoo ()
-  (Interactive)
+  (interactive)
   (start-process "ssb-patchfoo"
                  "ssb-patchfoo-buffer" 
                  "sbot" "server" "-patchfoo.port" "8027"))
@@ -114,16 +114,27 @@
 
 (defun ssb-live-feed (id)
   ; read raw live feed
+  (interactive)
   (async-shell-command "sbot feed --live"))
+
+(defun ssb-last-ten (id)
+  " read the last n messages"
+  (async-shell-command  "sbot feed --limit 10"))
+
+;(print ssb_id)
+;(ssb-last-ten ssb_id)
 
 (defun ssb-read-log (user_id)
   ;; read a specific user feed
   (shell-command-to-string 
-      (concat "sbot createUserStream --id " user_id)))
-
+   (concat "sbot createUserStream --id " user_id)))
+;(ssb-read-log ssb_id)
+g
 (defun ssb-read-last (id) 
   (shell-command-to-string 
    (concat "sbot createUserStream --id " id " --limit 1 --reverse")))
+;(print (ssb-read-last ssb_id))
+
 
 (defun ssb-get (message_id) 
   (shell-command-to-string (concat "sbot get  " message_id)))
@@ -338,7 +349,7 @@
         (beginning-of-line) 
         (end-of-line))))))
 
-(ssb-get-blob "&//URUOPzcwXbPGgvX0phR7AOjM+UmO2VnQXfvAluKIk=.sha256")
+;(ssb-get-blob "&//URUOPzcwXbPGgvX0phR7AOjM+UmO2VnQXfvAluKIk=.sha256")
 
 (defun blob-preview-sentinel (blob event)
   (if (equal event "finished\n")
