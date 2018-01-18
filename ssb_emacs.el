@@ -3,7 +3,7 @@
 
 (require 'json)
 (setq json-object-type 'plist)
-(setq ssb_name_file "~/.ssb/ssb_names.el")
+(setq ssb_name_file "~/.ssb/flume/names.json")
 
  
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -129,7 +129,7 @@
   (shell-command-to-string 
    (concat "sbot createUserStream --id " user_id)))
 ;(ssb-read-log ssb_id)
-g
+
 (defun ssb-read-last (id) 
   (shell-command-to-string 
    (concat "sbot createUserStream --id " id " --limit 1 --reverse")))
@@ -179,42 +179,20 @@ g
 (defun ssb-message-previous (message_data)
   (plist-get message_data :previous))
 
-;; Create local name hashtable and populate it from about stream
-(defun ssb-create-name-hash ()
-  (setq names (make-hash-table :test 'equal))
+;; get name using existing flume name.json file
+
+(defun ssb-get-name (user_id)
   (with-temp-buffer
     (insert-file-contents ssb_name_file)
     (goto-char 1)
-    (while (not (eobp))
-      (puthash 
-       (read 
-        (buffer-substring-no-properties 
-         (beginning-of-line) (end-of-line)) )) )))
+    (search-forward user_id)
+    (setq startPos (+ 3  (point)))
+    (search-forward ",")
+    (setq endPos (- (point) 2))
+    (buffer-substring-no-properties startPos endPos)))
 
-(defun ssb-save-names ()
-  (find-file ssb_name_file)
-  (erase-buffer)
-  (prin1 names (current-buffer))
-  (save-buffer)
-  (kill-buffer (current-buffer)))
+;;(get-name "@EMovhfIrFk4NihAKnRNhrfRaqIhBv1Wj8pTxJNgvCCY=.ed25519")
 
-(defun ssb-name ()
-  (let (command timestamp json) 
-    (setq timestamp (gethash "last_ts" names))
-    (setq command "sbot logt --type \"about\" --limit 1")
-    (if timestamp (setq command 
-                        (concat command " --gt \"" timestamp "\"")))
-    (setq json (json-read-from-string (shell-command-to-string command)))
-    (if (not (equal json "End of file while parsing JSON"))
-        (progn  (let* ((msg-value (plist-get json :value))
-                       (msg-content (plist-get msg-value :content)))
-                  (puthash "last_ts" 
-                           (number-to-string (plist-get json :ts)) names)
-                  (if (string= (plist-get msg-value :author) 
-                               (plist-get msg-content :about)) 
-                      (puthash (plist-get msg-content :about)
-                               (plist-get msg-content :name) names)))
-                (ssb-name)))))
 
 (defun ssb-one-about-message ()
   ;; procedural method of grabbing an about message from a buffer
@@ -226,70 +204,21 @@ g
   (setq endPos (point))
   (json-read-from-string (buffer-substring-no-properties startPos endPos)))
 
-(defun ssb-process-about (json)
-      (let ((msg-value (plist-get json :value))
-          (msg-content (plist-get (plist-get json :value) :content)))
-      (if (string= (plist-get msg-value :author)
-                   (plist-get msg-content :about))
-          (puthash
-           (plist-get msg-content :about)
-           (plist-get msg-content :name)
-           names))))
 
-(defun ssb-get-names2 ()
-  (with-temp-buffer
-    (insert (shell-command-to-string "sbot logt --type \"about\""))
-    (goto-char 1)
-    (while (not (eobp))
-      (ssb-process-about (ssb-one-about-message)))
-    (ssb-save-names)))
-
-(defun ssb-get-names ()
-  ; attempt do get names with one call...
-  (dolist (json
-           (json-read-from-string 
-            (shell-command-to-string "sbot logt --type \"about\"")))
-    (let ((msg-value (plist-get json :value))
-          (msg-content (plist-get (plist-get json :value) :content)))
-      (if (string= (plist-get msg-value :author)
-                   (plist-get msg-content :about))
-          (puthash
-           (plist-get msg-content :about)
-           (plist-get msg-content :name)
-           names)))))
-
-
-; (ssb-save-names)
-; (ssb-get-names)
 ; (ssb-start-server)
-; (ssb-name)
-; (hash-table-count names)
-; (gethash "last_ts" names)
-; (gethash id names)
-; (require 'subr-x)
-; (hash-table-values names) 
-; (clrhash names)
-; (gethash id names)
-; (maphash (lambda (k v) (print (concat k ":" v))) names)
-
 
 (defun ssb-decode (message_id)
   ; untested decode message
   (shell-command-to-string (concat "sbot private.unbox " message_id)))
 
-(defun ssb-name-from-id (user_id)
-  (ssb-message-name
-   (shell-command-to-string 
-    (format "sbot links --source %s --dest %s --rel about --values" 
-            user_id user_id))))
 
 (defun ssb-display-buffer (message_data)
   (pop-to-buffer (get-buffer-create "SSB-Message"))
   (erase-buffer)
   (insert message_data)
   (newline)
-  (insert (concat "Author: " (gethash 
-                              (ssb-message-author message_data) names))) 
+  (insert (concat "Author: " (ssb-get-name 
+                              (ssb-message-author message_data)))) 
   (insert (concat " Time: " (ssb-timestamp message_data)))
   (newline)
   (let (type)
@@ -309,11 +238,11 @@ g
   (ssb-display-buffer (ssb-read-last ssb_id)))
 
 
-
 ;;;;;;;;;;;;
 ;; images ;;
 ;;;;;;;;;;;;
 
+;; doesn't work yet
 
 (defun ssb-get-blob (blob_id)
   (with-temp-buffer
