@@ -1,48 +1,7 @@
 ;; -*- lexical-binding: t; -*-
-;; Secure Scuttlebutt Emacs Major Mode ;;
+;; Secure Scuttlebutt sbot server calls ;;
 
 (require 'json)
-(setq json-object-type 'plist)
-(setq ssb_name_file "~/.ssb/flume/names.json")
-
- 
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;; Render via Patchfoo   ;;
-;;;;;;;;;;;;;;;;;;;;;;;;;;;
-
-; This is probably the easiest way to get started.
-; ssb is rendered locally via Patchfoo, then
-; viewed with eww.
-; Install patchfoo as a sbot plugin, then run 
-; M-x ssb-eww-patchfoo
-
-(defun ssb-start-patchfoo ()
-  (interactive)
-  (start-process "ssb-patchfoo"
-                 "ssb-patchfoo-buffer" 
-                 "sbot" "server" "-patchfoo.port" "8027"))
-
-(defun ssb-stop-patchfoo ()
-  (interactive)
-  (process-send-eof "ssb-patchfoo")
-  (kill-buffer "ssb-patchfoo-buffer"))
-
-(defun ssb-check-patchfoo ()
-  (if (not (process-status "ssb-patchfoo"))
-      (if (y-or-n-p "Patchfoo is not running, start?")
-          (progn 
-            (ssb-start-patchfoo)
-            (sleep-for 1)))))
-
-(defun ssb-eww-patchfoo ()
-  (interactive)
-  (ssb-check-patchfoo)
-  (eww "http://localhost:8027"))
-
-
-
-;; The following are all elisp functions for interacting
-;; with sbot directly instead of using Patchfoo & eww.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;  Start ssb server and set your id ;;
@@ -194,6 +153,30 @@
 ;;(get-name "@EMovhfIrFk4NihAKnRNhrfRaqIhBv1Wj8pTxJNgvCCY=.ed25519")
 
 
+(defun get-name (user-id)
+  (let* ((json-object-type 'hash-table)
+         (json-array-type 'list)
+         (json-key-type 'string)
+         (command (concat "sbot links --source " user-id " --dest " user-id " --rel about --values"))
+         (about (json-read-from-string (shell-command-to-string command))))
+    
+))
+
+(defun get-thread (post-id)
+  "gets the full thread that a post is a part of"
+  (let* ((json-object-type 'hash-table)
+         (json-array-type 'list)
+         (json-key-type 'string)
+         (command (concat "sbot links --values --rel root --dest " post-id))
+         (thread (json-read-from-string (shell-command-to-string command))))
+    
+    ))
+
+(defun get-posts-after (timestamp)
+  (shell-command-to-string (concat "sbot logt --type post --gte " timestamp)))
+
+;;(get-post-after (format-time-string "%s" (time-add (current-time) (* -24 60 60 1000))))
+
 (defun ssb-one-about-message ()
   ;; procedural method of grabbing an about message from a buffer
   (search-forward "{")
@@ -217,7 +200,7 @@
   (erase-buffer)
   (insert message_data)
   (newline)
-  (insert (concat "Author: " (ssb-get-name 
+  (insert (concat "Author: " (get-name 
                               (ssb-message-author message_data)))) 
   (insert (concat " Time: " (ssb-timestamp message_data)))
   (newline)

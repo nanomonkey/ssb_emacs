@@ -4,7 +4,7 @@ Secure Scuttlebutt for Emacs
 
 **What is scuttlebutt?!**
 
-Learn more at [scuttlebutt](https://www.scuttlebutt.nz/)
+Learn more at [scuttlebutt.nz](https://www.scuttlebutt.nz/)
 
 **Install**
 - Put the ssb_emacs.el file where the sun don't shine.
