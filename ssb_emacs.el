@@ -233,6 +233,14 @@
       (shell-command "sbot blobs.get \"" blob_id "\"")
       (image-mode))))
 
+(defun b64->hex (b64-string)
+  (mapconcat (lambda (x) (format "%x" x)) (base64-decode-string b64-string) ""))
+
+(defun display-image (blob_id)
+  (let* ((id (b64->hex (substring blob_id 1 -7)))
+         (path (concat "~/.ssb/blobs/sha256/" (substring id 0 2) "/" (substring id 2))))
+    (newline)
+    (insert-image (create-image path))))
 
 (defun ssb-list-blobs ()
   (interactive)
