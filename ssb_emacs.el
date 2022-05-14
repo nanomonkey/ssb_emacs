@@ -236,11 +236,14 @@
 (defun b64->hex (b64-string)
   (mapconcat (lambda (x) (format "%x" x)) (base64-decode-string b64-string) ""))
 
+(defun blob-path (blob_id ssb_path)
+  (let* ((id (b64->hex (substring (file-name-sans-extension blob_id) 1)))
+         (blob_type (file-name-extension blob_id)))
+    (concat ssb_path "/blobs/" blob_type "/" (substring id 0 2) "/" (substring id 2))))
+
 (defun display-image (blob_id)
-  (let* ((id (b64->hex (substring blob_id 1 -7)))
-         (path (concat "~/.ssb/blobs/sha256/" (substring id 0 2) "/" (substring id 2))))
-    (newline)
-    (insert-image (create-image path))))
+  (newline)
+  (insert-image (create-image (blob-path blob_id "~/.ssb"))))
 
 (defun ssb-list-blobs ()
   (interactive)
