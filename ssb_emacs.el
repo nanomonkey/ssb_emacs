@@ -8,6 +8,8 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (defun ssb-start-server () 
+"creates an asyncronous process starting called SSB-SERVER running SBOT with argument SERVER 
+and a buffer called SSB-SERVER-BUFFER"
 (interactive)
 (start-process "ssb-server"   "ssb-server-buffer" "sbot" "server"))
 
@@ -30,6 +32,12 @@
         (plist-get (json-read-from-string 
                     (shell-command-to-string "sbot whoami")) :id)))
 
+(defun ssb-command (command &rest arguments)
+ (ssb-check-server)
+ (json-read-from-string
+  (shell-command-to-string
+   (format "sbot %s" (shell-quote-argument (apply #'format comand arguments))))))
+
 ;;;;;;;;;;
 ;; Pubs ;;
 ;;;;;;;;;;
@@ -37,6 +45,9 @@
 (defun ssb-join-pub (code)
   (shell-command-to-string (concat
                             "sbot invite.accept " code)))
+
+(defun ssb-join-pub (code)
+  (ssb-command "invite.accept" code))
 
 ;;;;;;;;;;;;;;;;;;;;;;
 ;; Publish messages ;;
@@ -158,9 +169,7 @@
          (json-array-type 'list)
          (json-key-type 'string)
          (command (concat "sbot links --source " user-id " --dest " user-id " --rel about --values"))
-         (about (json-read-from-string (shell-command-to-string command))))
-    
-))
+         (about (json-read-from-string (shell-command-to-string command))))))
 
 (defun get-thread (post-id)
   "gets the full thread that a post is a part of"
@@ -168,9 +177,7 @@
          (json-array-type 'list)
          (json-key-type 'string)
          (command (concat "sbot links --values --rel root --dest " post-id))
-         (thread (json-read-from-string (shell-command-to-string command))))
-    
-    ))
+         (thread (json-read-from-string (shell-command-to-string command))))))
 
 (defun get-posts-after (timestamp)
   (shell-command-to-string (concat "sbot logt --type post --gte " timestamp)))
@@ -225,14 +232,6 @@
 ;; images ;;
 ;;;;;;;;;;;;
 
-;; doesn't work yet
-
-(defun ssb-get-blob (blob_id)
-  (with-temp-buffer
-    (let ((coding-system-for-write 'binary))
-      (shell-command "sbot blobs.get \"" blob_id "\"")
-      (image-mode))))
-
 (defun b64->hex (b64-string)
   (mapconcat (lambda (x) (format "%x" x)) (base64-decode-string b64-string) ""))
 
@@ -244,6 +243,15 @@
 (defun display-image (blob_id)
   (newline)
   (insert-image (create-image (blob-path blob_id "~/.ssb"))))
+
+
+;; doesn't work yet
+
+(defun ssb-get-blob (blob_id)
+  (with-temp-buffer
+    (let ((coding-system-for-write 'binary))
+      (shell-command "sbot blobs.get \"" blob_id "\"")
+      (image-mode))))
 
 (defun ssb-list-blobs ()
   (interactive)

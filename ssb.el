@@ -19,7 +19,7 @@
        (text (assoc text message))
        (time-stamp (assoc timestamp message)))
    (switch-to-buffer buffer)
-   (insert author timestamp)
+ (insert author timestamp)
    (insert text)
 ))
 

@@ -35,3 +35,6 @@ still being ironed out.  Pull requests welcome.
 
 ...more to come
 
+TODO:
+- Compile Feed about info into a directory for quick lookup (both for messages and browsing feeds).
+- 
